@@ -36,8 +36,10 @@
 #include <vendor/nxp/hardware/nfc/2.0/types.h>
 #include <base/logging.h>
 #include <cutils/properties.h>
+#include <log/log.h>
 
 #include "nfc_target.h"
+
 #include "bt_types.h"
 #include "gki.h"
 #include <stdlib.h>
@@ -798,6 +800,15 @@ static void nfc_main_hal_data_cback(uint16_t data_len, uint8_t* p_data) {
   }
 
   if (p_data) {
+    uint16_t max_len = GKI_get_pool_bufsize(NFC_NCI_POOL_ID) - sizeof(NFC_HDR) -
+                       NFC_RECEIVE_MSGS_OFFSET;
+    if (data_len > max_len) {
+      LOG(ERROR) << StringPrintf(
+          "%s: dropping oversized HAL packet (%u bytes > %u capacity)",
+          __func__, data_len, max_len);
+      android_errorWriteLog(0x534e4554, "508389591");
+      return;
+    }
     p_msg = (NFC_HDR*)GKI_getpoolbuf(NFC_NCI_POOL_ID);
     if (p_msg != nullptr) {
       /* Initialize NFC_HDR */
